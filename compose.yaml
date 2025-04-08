@@ -8,14 +8,14 @@
 # database or a cache. For examples, see the Awesome Compose repository:
 # https://github.com/docker/awesome-compose
 services:
-  gradio-service:
-    build:
-      context: gradio-json
-      dockerfile: Dockerfile 
-    ports:
-      - 7860:7860
-    volumes:
-      - /work
+  #gradio-service:
+   # build:
+    #  context: gradio-json
+     # dockerfile: Dockerfile 
+    #ports:
+    #  - 7860:7860
+    #volumes:
+     # - /work
 
   gradio-image:
     build:
@@ -26,28 +26,28 @@ services:
     volumes:
       - /work
 
-  gradio-files:
-    build:
-      context: gradio-files
-      dockerfile: Dockerfile
-    ports:
-      - 7861:7861
-    develop:
-      watch:
-      - action: sync
-        path: ./app-gradio.py
-        target: /workspace/app-gradio.py
-    volumes:
-      - /workspace
+  #gradio-files:
+  #  build:
+  #    context: gradio-files
+  #    dockerfile: Dockerfile
+  #  ports:
+  #    - 7861:7861
+  #  develop:
+  #    watch:
+  #    - action: sync
+  #      path: ./app-gradio.py
+  #      target: /workspace/app-gradio.py
+  #  volumes:
+  #    - /workspace
 
-  backend-json:
-    build:
-      context: backend-json
-      dockerfile: Dockerfile 
-    ports:
-      - 8080:8080
-    volumes:
-      - /code
+  #backend-json:
+  #  build:
+  #    context: backend-json
+  #    dockerfile: Dockerfile 
+  #  ports:
+  #    - 8080:8080
+  #  volumes:
+  #    - /code
 
   backend-image:
     build:
@@ -58,26 +58,26 @@ services:
     volumes:
       - /code
 
-  backend-files:
-    build:
-      context: backend-files
-      dockerfile: Dockerfile
-    ports: 
-      - 9000:9000
-    develop:
-      watch:
-      - action: sync
-        path: ./backend-files/app/webservice.py
-        target: /app/webservice.py
-    volumes:
-      - /app
+  #backend-files:
+  #  build:
+  #    context: backend-files
+  #    dockerfile: Dockerfile
+  #  ports: 
+  #    - 9000:9000
+  #  develop:
+  #    watch:
+  #    - action: sync
+  #      path: ./backend-files/app/webservice.py
+  #      target: /app/webservice.py
+  #  volumes:
+  #    - /app
 
-  treinamento-treina:
-    build:
-      context: treinamento-treina
-      dockerfile: Dockerfile
-    ports: 
-      - 7001:7000
-    volumes:
-      - /ml
+  #treinamento-treina:
+  #  build:
+  #    context: treinamento-treina
+  #    dockerfile: Dockerfile
+  #  ports: 
+  #    - 7001:7000
+  #  volumes:
+  #    - /ml
     
