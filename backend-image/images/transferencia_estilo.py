@@ -1,41 +1,33 @@
 # -*- coding: utf-8 -*-
-import matplotlib.pyplot as plt
 import numpy as np
 from PIL import Image
-import time
-
+from torchvision import transforms
 import tensorflow as tf
 from tensorflow.python.keras import models
 from tensorflow.python.keras import losses
 from tensorflow.python.keras import layers
 from tensorflow.python.keras import backend as K
+import io
 
-content_path = 'images/louvre.jpg'
-style_path = 'images/monet_800600.jpg'
-
-# Função para ler imagem e transformar em um array do TensorFlow
-def load_img(path_to_img):
+# Função para carregar imagem e transformar em um array do TensorFlow
+def load_img_from_bytes(image_bytes):
     max_dim = 512
-    img = Image.open(path_to_img)
+    img = Image.open(io.BytesIO(image_bytes))
     long = max(img.size)
-    scale = max_dim/long
-    img = img.resize((round(img.size[0]*scale), round(img.size[1]*scale)), Image.BICUBIC)
+    scale = max_dim / long
+    img = img.resize((round(img.size[0] * scale), round(img.size[1] * scale)), Image.BICUBIC)
     img = tf.keras.utils.img_to_array(img)
-
+ 
     # Inclui eixo dos exemplos
     img = np.expand_dims(img, axis=0)
     return img
-
-# Carregar e salvar a VGG19 na rna-base
-vgg = tf.keras.applications.vgg19.VGG19(include_top=False, weights='imagenet')
-
-from tensorflow.keras.applications import vgg19
-
-def load_and_process_img(path_to_img):
-    img = load_img(path_to_img)
+ 
+# Carrega e processa imagem para VGG19
+def load_and_process_img(image_bytes):
+    img = load_img_from_bytes(image_bytes)
     img = tf.keras.applications.vgg19.preprocess_input(img)
     return img
-
+ 
 def deprocess_img(processed_img):
     x = processed_img.copy()
     if len(x.shape) == 4:
@@ -72,9 +64,6 @@ def get_model(style_layers, content_layers):
     # Carrega a VGG19 pré-treinada
     vgg = tf.keras.applications.VGG19(include_top=False, weights='imagenet')
     vgg.trainable = False
-
-    # Apresentar o sumário da VGG19 para forçar a construção do modelo e inicializar os parâmetros
-    vgg.summary()
 
     # Determina camada de entrada
     model_input = vgg.input
@@ -183,65 +172,60 @@ def compute_grads(cfg):
     # retorna gradiente e custo
     return grad, all_loss
 
-def run_style_transfer(content_path, style_path, num_iterations=1, content_weight=100, style_weight=100):
-    # Não é necessário treinar nenhum modelo, assim, definimos todos os parâmetros como não treináveis
+# Função principal de transferência de estilo
+def run_style_transfer(content_path, style_path, num_iterations=100, content_weight=1e3, style_weight=1e-2):
+    # Definição das camadas de conteúdo e estilo
+    content_layers = ['block5_conv2']
+    style_layers = ['block1_conv1', 'block2_conv1', 'block3_conv1', 'block4_conv1', 'block5_conv1']
+    num_content_layers = len(content_layers)
+    num_style_layers = len(style_layers)
+ 
     model = get_model(style_layers, content_layers)
     for layer in model.layers:
         layer.trainable = False
-
-    # Calcula as representações de estilo e conteúdo (camadas intermediárias selecionadas)
-    style_features, content_features = get_feature_representations(model, content_path, style_path)
-
-    # Calcula matriz de Gram
+ 
+    # Carregar as imagens
+    content_image = load_and_process_img(content_path)
+    style_image = load_and_process_img(style_path)
+ 
+    # Calcular características de estilo e conteúdo
+    style_outputs = model(style_image)
+    content_outputs = model(content_image)
+ 
+    style_features = [style_layer[0] for style_layer in style_outputs[:num_style_layers]]
+    content_features = [content_layer[0] for content_layer in content_outputs[num_style_layers:]]
+ 
+    # Calcular matrizes de Gram
     gram_style_features = [gram_matrix(style_feature) for style_feature in style_features]
-
-    # Inicializa imagem gerada com a imagem de conteúdo
-    init_image = load_and_process_img(content_path)
-    init_image = tf.Variable(init_image, dtype=tf.float32)
-
-    # Cria otimizador Adam
+ 
+    # Inicializar imagem gerada
+    init_image = tf.Variable(content_image, dtype=tf.float32)
+ 
+    # Otimizador Adam
     opt = tf.optimizers.Adam(learning_rate=5.0)
-
-    # Para visualização de imagens intermediárias
-    iter_count = 1
-
-    # Inicializa custo e imagem de saída
+ 
+    # Processamento de treinamento
     best_loss, best_img = float('inf'), None
-
-    # Cria config para ser usado na função compute_grads
     loss_weights = (style_weight, content_weight)
-    cfg = {'model': model,'loss_weights': loss_weights,'init_image': init_image,'gram_style_features': gram_style_features,'content_features': content_features}
-
-    # Determina valores máximo e mínimo dos pixels da imagem
+    cfg = {'model': model, 'loss_weights': loss_weights, 'init_image': init_image, 'gram_style_features': gram_style_features, 'content_features': content_features}
+ 
+    # Inicializa os valores de normalização para a imagem gerada
     norm_means = np.array([103.939, 116.779, 123.68])
     min_vals = -norm_means
     max_vals = 255 - norm_means
-
-    # Inicializa imagens e histórico do processo de treinamento
-    imgs = []
-    history = np.zeros(num_iterations)
-
+ 
     for i in range(num_iterations):
-        # Calcula gradiente da função de custo
         grads, all_loss = compute_grads(cfg)
-
-        # Separa os custos de estilo e conteúdo
+ 
         loss, style_score, content_score = all_loss
-
-        # Aplica gradiente na imagem gerada
         opt.apply_gradients([(grads, init_image)])
-
-        # Corta valores dos pixels menor que mínimo e maior que máximo
+ 
         clipped = tf.clip_by_value(init_image, min_vals, max_vals)
         init_image.assign(clipped)
-
-        # Salva imagem gerada se novo valor da função de custo for menor que o anterior
+ 
         if loss < best_loss:
-            # Atualiza imagem a partir da função de custo total
             best_loss = loss
             best_img = deprocess_img(init_image.numpy())
-
-        # Guardo custo total na história do processo de treinamento
-        history[i] = loss
-
-    return best_img, best_loss, history
+ 
+    return best_img
+ 

@@ -1,2 +1,2 @@
-Gradio
+gradio
 requests

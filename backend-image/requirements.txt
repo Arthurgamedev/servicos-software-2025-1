@@ -4,4 +4,6 @@ gunicorn
 uvicorn
 python-multipart
 numpy
-pillow
+Pillow
+torch
+torchvision
