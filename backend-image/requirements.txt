@@ -3,7 +3,6 @@ pydantic
 gunicorn
 uvicorn
 python-multipart
-numpy
 Pillow
 torch
 torchvision

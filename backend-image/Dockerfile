@@ -18,11 +18,8 @@ COPY --from=swagger-ui /usr/share/nginx/html/swagger-ui-bundle.js swagger-ui-ass
 # Instalar dependências do projeto
 RUN pip install --no-cache-dir --upgrade -r /images/requirements.txt
 
-# Instalar bibliotecas adicionais
-RUN python3 -m pip install tf-nightly keras Pillow
-
 # Expor a porta do servidor
 EXPOSE 9001
 
 # Executar o servidor da aplicação
-CMD ["gunicorn", "--bind", "0.0.0.0:9001", "--workers", "1", "--timeout", "0", "images.webservice:app", "-k", "uvicorn.workers.UvicornWorker"]
+CMD ["gunicorn", "--bind", "0.0.0.0:9001", "--workers", "1", "--timeout", "0", "images.referencia_backend:app", "-k", "uvicorn.workers.UvicornWorker"]
